@@ -246,13 +246,13 @@ export default function Home() {
                     <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
                   </svg>
                 </div>
-                <div className="text-center">
+                <div className="w-full text-center">
                   <p className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
                     分析失敗
                   </p>
-                  <p className="mt-1 text-xs text-red-500">
+                  <pre className="mt-2 max-h-40 overflow-auto rounded-md bg-red-50 p-3 text-left text-xs text-red-600 whitespace-pre-wrap break-words dark:bg-red-900/20 dark:text-red-400">
                     {analysisError}
-                  </p>
+                  </pre>
                 </div>
                 <div className="flex gap-3">
                   <Button variant="secondary" onClick={handleBackToUpload}>

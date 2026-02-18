@@ -10,10 +10,11 @@
   },
   "dependencies": {
     "@google/genai": "^1.41.0",
+    "data-uri-to-buffer": "^6.0.2",
     "next": "16.1.6",
     "react": "19.2.3",
     "react-dom": "19.2.3",
-    "zod": "^4.3.6",
+    "zod": "^3.25.76",
     "zod-to-json-schema": "^3.25.1"
   },
   "devDependencies": {

@@ -35,14 +35,19 @@ export function useAnalysis(): UseAnalysisReturn {
 
       if (!res.ok) {
         const body = await res.json().catch(() => null);
-        throw new Error(body?.error ?? `分析失敗 (${res.status})`);
+        const status = res.status;
+        const serverError = body?.error ?? '未知伺服器錯誤';
+        const detail = body?.detail ? `\n${body.detail}` : '';
+        throw new Error(`[${status}] ${serverError}${detail}`);
       }
 
       const data: AnalysisResult = await res.json();
       setResult(data);
     } catch (err) {
+      console.error('[useAnalysis] 分析錯誤：', err);
+
       if (err instanceof TypeError && err.message === 'Failed to fetch') {
-        setError('網路連線失敗，請檢查網路後重試');
+        setError('網路連線失敗，請檢查網路後重試。可能原因：伺服器未啟動、CORS 問題或網路中斷。');
       } else {
         const message = err instanceof Error ? err.message : '分析時發生未知錯誤';
         setError(message);
