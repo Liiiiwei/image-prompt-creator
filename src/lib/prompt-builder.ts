@@ -100,6 +100,7 @@ function getTypeLabel(type: string): string {
     image: '圖片',
     shape: '形狀',
     divider: '分隔線',
+    cta_button: 'CTA 按鈕',
   };
   return labels[type] ?? type;
 }

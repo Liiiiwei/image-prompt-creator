@@ -8,7 +8,8 @@ export type ElementType =
   | 'decoration'
   | 'image'
   | 'shape'
-  | 'divider';
+  | 'divider'
+  | 'cta_button';
 
 /** 元素位置 */
 export interface ElementPosition {

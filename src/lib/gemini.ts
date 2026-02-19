@@ -8,7 +8,7 @@ const ANALYSIS_PROMPT = `你是一個專業的社群媒體設計分析師。
 你的任務是分析使用者上傳的社群貼文圖片，精確辨識所有視覺元素。
 
 分析要求：
-1. 辨識所有文字元素（標題、副標題、內文、標籤等），記錄其內容與樣式
+1. 辨識所有文字元素（標題、副標題、內文、CTA 按鈕、標籤等），記錄其內容與樣式
 2. 辨識背景設計（純色、漸層、圖片、材質）
 3. 辨識裝飾元素（圖標、形狀、分隔線、花紋等）
 4. 辨識圖片/插圖元素
@@ -20,7 +20,8 @@ const ANALYSIS_PROMPT = `你是一個專業的社群媒體設計分析師。
 - 顏色用中文描述（如「深藍色」、「暖橘色」）
 - 字體描述用風格（如「無襯線體」、「手寫風」）而非具體字體名
 - 每個元素都需要唯一 id，格式為 type_序號（如 title_1, decoration_2）
-- suggestions 陣列中每個建議應該是具體可操作的美化方向`;
+- suggestions 陣列中每個建議應該是具體可操作的美化方向
+- 若圖片包含行動呼籲按鈕（如「立即購買」「了解更多」「免費試用」「馬上訂購」），type 設為 cta_button`;
 
 /** Zod schema 用於驗證 Gemini 回傳 */
 const analysisResultSchema = z.object({
@@ -33,7 +34,7 @@ const analysisResultSchema = z.object({
       id: z.string(),
       type: z.enum([
         'title', 'subtitle', 'body_text', 'background',
-        'icon', 'decoration', 'image', 'shape', 'divider',
+        'icon', 'decoration', 'image', 'shape', 'divider', 'cta_button',
       ]),
       content: z.string(),
       position: z.object({
@@ -72,7 +73,7 @@ const JSON_SCHEMA = {
           id: { type: 'string' as const },
           type: {
             type: 'string' as const,
-            enum: ['title', 'subtitle', 'body_text', 'background', 'icon', 'decoration', 'image', 'shape', 'divider'],
+            enum: ['title', 'subtitle', 'body_text', 'background', 'icon', 'decoration', 'image', 'shape', 'divider', 'cta_button'],
           },
           content: { type: 'string' as const },
           position: {

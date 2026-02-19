@@ -1,6 +1,7 @@
 'use client';
 
 import type { AnalyzedElement, ElementSetting } from '@/types';
+import { TYPE_LABELS, getElementCategory, CATEGORY_BADGE_VARIANT, CATEGORY_BORDER_STYLES } from '@/lib/element-categories';
 import { Select } from './ui/Select';
 import { Slider } from './ui/Slider';
 import { Badge } from './ui/Badge';
@@ -11,21 +12,8 @@ interface ElementCardProps {
   onChange: (setting: ElementSetting) => void;
 }
 
-/** 元素類型的中文標籤 */
-const TYPE_LABELS: Record<string, string> = {
-  title: '標題',
-  subtitle: '副標題',
-  body_text: '內文',
-  background: '背景',
-  icon: '圖標',
-  decoration: '裝飾',
-  image: '圖片',
-  shape: '形狀',
-  divider: '分隔線',
-};
-
 /** 裝飾風格選項 */
-const DECORATION_OPTIONS = [
+export const DECORATION_OPTIONS = [
   { value: 'none', label: '無裝飾' },
   { value: 'underline', label: '底線' },
   { value: 'outline', label: '外框' },
@@ -70,10 +58,12 @@ const EFFECT_OPTIONS = [
 
 /** 是否為文字類元素 */
 function isTextElement(type: string): boolean {
-  return ['title', 'subtitle', 'body_text'].includes(type);
+  return ['title', 'subtitle', 'body_text', 'cta_button'].includes(type);
 }
 
 export function ElementCard({ element, setting, onChange }: ElementCardProps) {
+  const category = getElementCategory(element.type);
+
   const updateDecoration = (key: string, value: string | number) => {
     onChange({
       ...setting,
@@ -89,11 +79,13 @@ export function ElementCard({ element, setting, onChange }: ElementCardProps) {
   };
 
   return (
-    <div className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-800/50">
+    <div className={`rounded-lg border bg-white p-4 dark:bg-zinc-800/50 ${CATEGORY_BORDER_STYLES[category]}`}>
       {/* 標頭 */}
       <div className="mb-3 flex items-start justify-between">
         <div className="flex items-center gap-2">
-          <Badge>{TYPE_LABELS[element.type] ?? element.type}</Badge>
+          <Badge variant={CATEGORY_BADGE_VARIANT[category]}>
+            {TYPE_LABELS[element.type] ?? element.type}
+          </Badge>
           <span className="text-sm font-medium text-zinc-800 dark:text-zinc-200 line-clamp-1">
             {element.content}
           </span>
@@ -105,7 +97,11 @@ export function ElementCard({ element, setting, onChange }: ElementCardProps) {
 
       {/* AI 建議 */}
       {element.suggestions.length > 0 && (
-        <div className="mb-3 rounded-md bg-zinc-50 px-3 py-2 dark:bg-zinc-900/50">
+        <div className={`mb-3 rounded-md px-3 py-2 ${
+          category === 'text'
+            ? 'bg-blue-50/50 dark:bg-blue-900/10'
+            : 'bg-zinc-50 dark:bg-zinc-900/50'
+        }`}>
           <p className="text-xs text-zinc-500 dark:text-zinc-400">AI 建議：</p>
           <ul className="mt-1 space-y-0.5">
             {element.suggestions.map((s, i) => (
