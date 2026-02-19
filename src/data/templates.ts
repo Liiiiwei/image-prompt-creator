@@ -90,8 +90,8 @@ export const templates: StyleTemplate[] = [
       elementDefaults: {
         title: {
           elementId: '',
-          decoration: { style: 'shadow', intensity: 70, customNote: '金色粗體字，帶微微浮雕感' },
-          enhancement: { fontSuggestion: '粗體標題體', texture: '', effect: '金屬光澤', colorOverride: '金黃色' },
+          decoration: { style: 'shadow', intensity: 70, customNote: '金色粗體字，帶微微浮雕感，確保文字清晰可讀' },
+          enhancement: { fontSuggestion: '粗體標題體', texture: '', effect: '微陰影', colorOverride: '金黃色' },
         },
         subtitle: {
           elementId: '',
@@ -120,8 +120,8 @@ export const templates: StyleTemplate[] = [
         },
         cta_button: {
           elementId: '',
-          decoration: { style: 'badge', intensity: 75, customNote: '紅底金字的醒目按鈕' },
-          enhancement: { fontSuggestion: '粗體標題體', texture: '', effect: '金屬光澤', colorOverride: '金黃色' },
+          decoration: { style: 'badge', intensity: 75, customNote: '紅底金字的醒目按鈕，文字需清晰可辨' },
+          enhancement: { fontSuggestion: '粗體標題體', texture: '', effect: '微陰影', colorOverride: '金黃色' },
         },
       },
     },
@@ -145,8 +145,8 @@ export const templates: StyleTemplate[] = [
       elementDefaults: {
         title: {
           elementId: '',
-          decoration: { style: 'shadow', intensity: 50, customNote: '' },
-          enhancement: { fontSuggestion: '優雅襯線體', texture: '', effect: '金屬光澤', colorOverride: '' },
+          decoration: { style: 'shadow', intensity: 50, customNote: '優雅質感但文字需清晰' },
+          enhancement: { fontSuggestion: '優雅襯線體', texture: '', effect: '微陰影', colorOverride: '' },
         },
         background: {
           elementId: '',
@@ -156,7 +156,7 @@ export const templates: StyleTemplate[] = [
         cta_button: {
           elementId: '',
           decoration: { style: 'outline', intensity: 60, customNote: '' },
-          enhancement: { fontSuggestion: '優雅襯線體', texture: '', effect: '金屬光澤', colorOverride: '' },
+          enhancement: { fontSuggestion: '優雅襯線體', texture: '', effect: '微陰影', colorOverride: '' },
         },
       },
     },

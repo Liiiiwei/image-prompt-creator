@@ -44,6 +44,9 @@ function buildOverallInstruction(
   return lines.join('\n');
 }
 
+/** 文字類元素類型 */
+const TEXT_TYPES = ['title', 'subtitle', 'body_text', 'cta_button'];
+
 /** 建構單一元素的指令 */
 function buildElementInstruction(
   element: AnalyzedElement,
@@ -54,6 +57,11 @@ function buildElementInstruction(
   // 元素基本描述
   const typeLabel = getTypeLabel(element.type);
   parts.push(`【${typeLabel}】「${element.content}」（位於${element.position.area}）`);
+
+  // 圖片元素：自動附加保護指令
+  if (element.type === 'image') {
+    parts.push(`  - ⚠️ 保留此圖片原始內容不變，僅可調整外圍裝飾（邊框、陰影、圓角等）`);
+  }
 
   // 裝飾
   const decoLabel = DECORATION_LABELS[setting.decoration.style];
@@ -86,6 +94,11 @@ function buildElementInstruction(
     parts.push(`  - 額外要求：${setting.decoration.customNote}`);
   }
 
+  // 文字類元素且有裝飾效果：自動附加可讀性指令
+  if (TEXT_TYPES.includes(element.type) && (setting.decoration.style !== 'none' || setting.enhancement.effect)) {
+    parts.push(`  - ⚠️ 確保文字清晰可讀：裝飾效果不可遮擋或模糊文字，需維持足夠的文字與背景對比度`);
+  }
+
   return parts.join('\n');
 }
 
@@ -111,6 +124,8 @@ function buildGlobalConstraints(global: GlobalSetting): string {
     '重要約束：',
     '- 不要大幅改變原始排版結構，僅微調元素位置以達成視覺平衡',
     '- 保留所有原始文字內容不變',
+    '- ⚠️ 嚴格保留原始照片和產品圖片：不得修改、重繪或替換圖片中的實拍照片、產品照片、人物照片，僅能調整其邊框、陰影等外圍裝飾',
+    '- ⚠️ 文字可讀性最高優先：所有文字元素必須保持清晰易讀，裝飾效果（如金屬光澤、發光、浮雕）不得降低文字對比度或模糊字體邊緣；若裝飾與可讀性衝突，優先保證可讀性',
     '- 在原有基礎上增加視覺精緻度，讓圖片更吸睛',
     `- 裝飾元素密度控制在 ${global.decorationDensity}%（0=極少裝飾, 100=大量裝飾）`,
     `- 整體精緻度 ${global.overallRefinement}%（0=簡單樸素, 100=極致精緻）`,

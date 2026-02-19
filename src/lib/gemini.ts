@@ -21,7 +21,9 @@ const ANALYSIS_PROMPT = `你是一個專業的社群媒體設計分析師。
 - 字體描述用風格（如「無襯線體」、「手寫風」）而非具體字體名
 - 每個元素都需要唯一 id，格式為 type_序號（如 title_1, decoration_2）
 - suggestions 陣列中每個建議應該是具體可操作的美化方向
-- 若圖片包含行動呼籲按鈕（如「立即購買」「了解更多」「免費試用」「馬上訂購」），type 設為 cta_button`;
+- 若圖片包含行動呼籲按鈕（如「立即購買」「了解更多」「免費試用」「馬上訂購」），type 設為 cta_button
+- 若圖片包含產品實拍照片、人物照片，type 設為 image，並在 suggestions 中標注「建議保留原圖不變，僅調整外圍裝飾」
+- 對文字元素的建議中，應考慮可讀性，避免建議會降低文字清晰度的特效（如過度的金屬光澤、強烈發光等）`;
 
 /** Zod schema 用於驗證 Gemini 回傳 */
 const analysisResultSchema = z.object({
