@@ -1,10 +1,11 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import type { ProductInfo, ProductPrompts, ProductAnalysis, ProductStep } from '@/types/product';
 import { ProductInfoForm } from '@/components/product/ProductInfoForm';
 import { ProductPromptCards } from '@/components/product/ProductPromptCards';
+import { StepIndicator } from '@/components/StepIndicator';
 import { Button } from '@/components/ui/Button';
 
 const STEPS_CONFIG = [
@@ -21,8 +22,14 @@ export default function ProductPage() {
   const [analysis, setAnalysis] = useState<ProductAnalysis | null>(null);
   const [lastFile, setLastFile] = useState<File | null>(null);
   const [lastInfo, setLastInfo] = useState<ProductInfo | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const handleSubmit = useCallback(async (file: File, info: ProductInfo) => {
+    // 取消前一個尚未完成的請求
+    abortControllerRef.current?.abort();
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
     setLastFile(file);
     setLastInfo(info);
     setStep('analyzing');
@@ -37,6 +44,7 @@ export default function ProductPage() {
       const res = await fetch('/api/product-analyze', {
         method: 'POST',
         body: formData,
+        signal: controller.signal,
       });
 
       if (!res.ok) {
@@ -45,11 +53,12 @@ export default function ProductPage() {
         throw new Error(`[${res.status}] ${serverError}`);
       }
 
-      const data = await res.json();
+      const data: { analysis: ProductAnalysis; prompts: ProductPrompts } = await res.json();
       setAnalysis(data.analysis);
       setPrompts(data.prompts);
       setStep('result');
     } catch (err) {
+      if (err instanceof DOMException && err.name === 'AbortError') return;
       console.error('[ProductPage] 分析失敗：', err);
       if (err instanceof TypeError && err.message === 'Failed to fetch') {
         setError('網路連線失敗，請檢查網路後重試。');
@@ -67,12 +76,17 @@ export default function ProductPage() {
   }, [lastFile, lastInfo, handleSubmit]);
 
   const handleReset = useCallback(() => {
+    abortControllerRef.current?.abort();
     setStep('input');
     setError(null);
     setPrompts(null);
     setAnalysis(null);
     setLastFile(null);
     setLastInfo(null);
+  }, []);
+
+  const handleBackToInput = useCallback(() => {
+    setStep('input');
   }, []);
 
   return (
@@ -84,9 +98,10 @@ export default function ProductPage() {
             <Link
               href="/"
               className="text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300 transition-colors"
+              aria-label="回到首頁"
               title="回到首頁"
             >
-              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" aria-hidden="true">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
               </svg>
             </Link>
@@ -102,6 +117,7 @@ export default function ProductPage() {
           {step !== 'input' && (
             <button
               onClick={handleReset}
+              aria-label="重新開始整個流程"
               className="text-sm text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
             >
               重新開始
@@ -112,44 +128,7 @@ export default function ProductPage() {
 
       {/* Step Indicator */}
       <div className="border-b border-zinc-100 bg-white dark:border-zinc-800 dark:bg-zinc-900">
-        <div className="mx-auto flex max-w-5xl gap-6 px-6 py-2.5">
-          {STEPS_CONFIG.map((s, i) => {
-            const steps: ProductStep[] = ['input', 'analyzing', 'result'];
-            const currentIndex = steps.indexOf(step);
-            const stepIndex = steps.indexOf(s.key);
-            const isCompleted = stepIndex < currentIndex;
-            const isCurrent = stepIndex === currentIndex;
-
-            return (
-              <div key={s.key} className="flex items-center gap-2">
-                <div className={`flex h-5 w-5 items-center justify-center rounded-full text-xs font-medium transition-colors ${
-                  isCompleted
-                    ? 'bg-emerald-500 text-white'
-                    : isCurrent
-                      ? 'bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900'
-                      : 'bg-zinc-200 text-zinc-500 dark:bg-zinc-700 dark:text-zinc-400'
-                }`}>
-                  {isCompleted ? (
-                    <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-                    </svg>
-                  ) : (
-                    i + 1
-                  )}
-                </div>
-                <span className={`text-xs ${
-                  isCompleted
-                    ? 'text-emerald-600 dark:text-emerald-400'
-                    : isCurrent
-                      ? 'font-medium text-zinc-700 dark:text-zinc-300'
-                      : 'text-zinc-400 dark:text-zinc-500'
-                }`}>
-                  {s.label}
-                </span>
-              </div>
-            );
-          })}
-        </div>
+        <StepIndicator steps={STEPS_CONFIG} current={step} />
       </div>
 
       <main className="mx-auto max-w-5xl px-6 py-8">
@@ -173,10 +152,10 @@ export default function ProductPage() {
           <div className="flex flex-col items-center gap-6 py-24">
             {isLoading ? (
               <>
-                <div className="relative flex h-16 w-16 items-center justify-center">
+                <div className="relative flex h-16 w-16 items-center justify-center" role="status" aria-label="AI 分析中">
                   <div className="absolute inset-0 rounded-full border-2 border-zinc-200 dark:border-zinc-700" />
                   <div className="absolute inset-0 animate-spin rounded-full border-2 border-transparent border-t-emerald-500" />
-                  <svg className="h-6 w-6 text-emerald-500" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                  <svg className="h-6 w-6 text-emerald-500" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" aria-hidden="true">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
                   </svg>
                 </div>
@@ -188,9 +167,9 @@ export default function ProductPage() {
                 </div>
               </>
             ) : error ? (
-              <div className="flex w-full max-w-md flex-col items-center gap-6">
+              <div className="flex w-full max-w-md flex-col items-center gap-6" role="alert">
                 <div className="flex h-16 w-16 items-center justify-center rounded-full bg-red-50 dark:bg-red-900/20">
-                  <svg className="h-8 w-8 text-red-500" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                  <svg className="h-8 w-8 text-red-500" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" aria-hidden="true">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
                   </svg>
                 </div>
@@ -226,34 +205,11 @@ export default function ProductPage() {
               </Button>
             </div>
 
-            {/* 產品分析摘要 */}
-            <div className="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-900">
-              <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-2">AI 分析摘要</p>
-              <div className="grid grid-cols-1 gap-2 text-sm sm:grid-cols-3">
-                <div>
-                  <span className="text-xs text-zinc-400">產品描述：</span>
-                  <span className="text-zinc-700 dark:text-zinc-300">{analysis.productDescription}</span>
-                </div>
-                <div>
-                  <span className="text-xs text-zinc-400">外觀：</span>
-                  <span className="text-zinc-700 dark:text-zinc-300">{analysis.appearance}</span>
-                </div>
-                <div>
-                  <span className="text-xs text-zinc-400">材質：</span>
-                  <span className="text-zinc-700 dark:text-zinc-300">{analysis.material}</span>
-                </div>
-                <div>
-                  <span className="text-xs text-zinc-400">色調：</span>
-                  <span className="text-zinc-700 dark:text-zinc-300">{analysis.colorPalette.join('、')}</span>
-                </div>
-                <div className="sm:col-span-2">
-                  <span className="text-xs text-zinc-400">視覺風格：</span>
-                  <span className="text-zinc-700 dark:text-zinc-300">{analysis.visualStyle}</span>
-                </div>
-              </div>
-            </div>
-
-            <ProductPromptCards prompts={prompts} analysis={analysis} />
+            <ProductPromptCards
+              prompts={prompts}
+              analysis={analysis}
+              onRegenerate={handleBackToInput}
+            />
           </div>
         )}
       </main>

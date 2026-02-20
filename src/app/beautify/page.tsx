@@ -8,11 +8,12 @@ import { AnalysisLoading } from '@/components/AnalysisLoading';
 import { ElementControlPanel } from '@/components/ElementControlPanel';
 import { StyleTemplateSelector } from '@/components/StyleTemplateSelector';
 import { PromptOutput } from '@/components/PromptOutput';
+import { StepIndicator } from '@/components/StepIndicator';
+import { ImagePreview } from '@/components/ImagePreview';
 import { Button } from '@/components/ui/Button';
 import { useAnalysis } from '@/hooks/useAnalysis';
 import { buildPrompt } from '@/lib/prompt-builder';
 
-/** 產生元素的預設設定 */
 function createDefaultSettings(analysis: AnalysisResult): ElementSetting[] {
   return analysis.elements.map((el) => ({
     elementId: el.id,
@@ -28,12 +29,15 @@ const DEFAULT_GLOBAL: GlobalSetting = {
   overallRefinement: 70,
 };
 
-const STEPS_CONFIG = [
-  { key: 'upload' as AppStep, label: '上傳' },
-  { key: 'analyzing' as AppStep, label: '分析' },
-  { key: 'editing' as AppStep, label: '調整' },
-  { key: 'generated' as AppStep, label: '完成' },
+const STEPS_CONFIG: Array<{ key: AppStep; label: string }> = [
+  { key: 'upload', label: '上傳' },
+  { key: 'analyzing', label: '分析' },
+  { key: 'editing', label: '調整' },
+  { key: 'generated', label: '完成' },
 ];
+
+// 允許回跳的步驟（'analyzing' 不允許）
+const CLICKABLE_STEPS: AppStep[] = ['upload', 'editing', 'generated'];
 
 export default function BeautifyPage() {
   const [step, setStep] = useState<AppStep>('upload');
@@ -65,14 +69,16 @@ export default function BeautifyPage() {
     setGlobalSetting(template.defaults.globalSetting);
 
     if (analysisResult) {
+      // 預先建立 elementType 查找表，避免每次 map 都做 find
+      const elementTypeMap = new Map(
+        analysisResult.elements.map((el) => [el.id, el.type])
+      );
       setElementSettings((prev) =>
         prev.map((setting) => {
-          const element = analysisResult.elements.find((el) => el.id === setting.elementId);
-          if (!element) return setting;
-
-          const templateDefault = template.defaults.elementDefaults[element.type];
+          const elementType = elementTypeMap.get(setting.elementId);
+          if (!elementType) return setting;
+          const templateDefault = template.defaults.elementDefaults[elementType];
           if (!templateDefault) return setting;
-
           return {
             ...setting,
             decoration: templateDefault.decoration ?? setting.decoration,
@@ -114,41 +120,31 @@ export default function BeautifyPage() {
     resetAnalysis();
   }, [previewUrl, resetAnalysis]);
 
-  const handleCancelAnalysis = useCallback(() => {
-    handleBackToUpload();
-  }, [handleBackToUpload]);
+  const handleStepClick = useCallback((targetStep: AppStep) => {
+    if (targetStep === 'upload') {
+      handleBackToUpload();
+    } else if (targetStep === 'editing') {
+      handleBackToEdit();
+    }
+  }, [handleBackToUpload, handleBackToEdit]);
 
   const handleRetry = useCallback(async () => {
     setStep('analyzing');
     await retry();
   }, [retry]);
 
-  const handleStepClick = useCallback((targetStep: AppStep) => {
-    const steps: AppStep[] = ['upload', 'analyzing', 'editing', 'generated'];
-    const currentIndex = steps.indexOf(step);
-    const targetIndex = steps.indexOf(targetStep);
-
-    if (targetIndex >= currentIndex) return;
-
-    if (targetStep === 'upload') {
-      handleBackToUpload();
-    } else if (targetStep === 'editing' && step === 'generated') {
-      handleBackToEdit();
-    }
-  }, [step, handleBackToUpload, handleBackToEdit]);
-
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950">
-      {/* 頂部標題 */}
       <header className="border-b border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
           <div className="flex items-center gap-3">
             <Link
               href="/"
               className="text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300 transition-colors"
+              aria-label="回到首頁"
               title="回到首頁"
             >
-              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" aria-hidden="true">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
               </svg>
             </Link>
@@ -164,6 +160,7 @@ export default function BeautifyPage() {
           {step !== 'upload' && (
             <button
               onClick={handleBackToUpload}
+              aria-label="重新開始整個流程"
               className="text-sm text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
             >
               重新開始
@@ -172,54 +169,13 @@ export default function BeautifyPage() {
         </div>
       </header>
 
-      {/* 步驟指示 */}
       <div className="border-b border-zinc-100 bg-white dark:border-zinc-800 dark:bg-zinc-900">
-        <div className="mx-auto flex max-w-6xl gap-6 px-6 py-2.5">
-          {STEPS_CONFIG.map((s, i) => {
-            const steps: AppStep[] = ['upload', 'analyzing', 'editing', 'generated'];
-            const currentIndex = steps.indexOf(step);
-            const stepIndex = steps.indexOf(s.key);
-            const isCompleted = stepIndex < currentIndex;
-            const isCurrent = stepIndex === currentIndex;
-            const canClick = isCompleted && s.key !== 'analyzing';
-
-            return (
-              <button
-                key={s.key}
-                onClick={() => canClick && handleStepClick(s.key)}
-                disabled={!canClick}
-                className={`flex items-center gap-2 transition-colors ${
-                  canClick ? 'cursor-pointer hover:opacity-80' : 'cursor-default'
-                }`}
-              >
-                <div className={`flex h-5 w-5 items-center justify-center rounded-full text-xs font-medium transition-colors ${
-                  isCompleted
-                    ? 'bg-emerald-500 text-white'
-                    : isCurrent
-                      ? 'bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900'
-                      : 'bg-zinc-200 text-zinc-500 dark:bg-zinc-700 dark:text-zinc-400'
-                }`}>
-                  {isCompleted ? (
-                    <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-                    </svg>
-                  ) : (
-                    i + 1
-                  )}
-                </div>
-                <span className={`text-xs ${
-                  isCompleted
-                    ? 'text-emerald-600 dark:text-emerald-400'
-                    : isCurrent
-                      ? 'font-medium text-zinc-700 dark:text-zinc-300'
-                      : 'text-zinc-400 dark:text-zinc-500'
-                }`}>
-                  {s.label}
-                </span>
-              </button>
-            );
-          })}
-        </div>
+        <StepIndicator
+          steps={STEPS_CONFIG}
+          current={step}
+          onStepClick={handleStepClick}
+          clickableKeys={CLICKABLE_STEPS}
+        />
       </div>
 
       <main className="mx-auto max-w-6xl px-6 py-8">
@@ -231,7 +187,7 @@ export default function BeautifyPage() {
                 上傳你的社群貼文圖片
               </h2>
               <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
-                AI 會分析圖片上的文字、排版和風格，幫你生成美化 prompt
+                支援 PNG、JPEG、WEBP，最大 10MB
               </p>
             </div>
             <ImageUploader onImageReady={handleImageReady} />
@@ -242,30 +198,24 @@ export default function BeautifyPage() {
         {step === 'analyzing' && (
           <>
             {isLoading && !analysisError && (
-              <AnalysisLoading onCancel={handleCancelAnalysis} />
+              <AnalysisLoading onCancel={handleBackToUpload} />
             )}
             {analysisError && !isLoading && (
-              <div className="flex w-full max-w-xl mx-auto flex-col items-center gap-6 py-12">
+              <div className="flex w-full max-w-xl mx-auto flex-col items-center gap-6 py-12" role="alert">
                 <div className="flex h-16 w-16 items-center justify-center rounded-full bg-red-50 dark:bg-red-900/20">
-                  <svg className="h-8 w-8 text-red-500" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                  <svg className="h-8 w-8 text-red-500" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" aria-hidden="true">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
                   </svg>
                 </div>
                 <div className="w-full text-center">
-                  <p className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
-                    分析失敗
-                  </p>
+                  <p className="text-sm font-medium text-zinc-700 dark:text-zinc-300">分析失敗</p>
                   <pre className="mt-2 max-h-40 overflow-auto rounded-md bg-red-50 p-3 text-left text-xs text-red-600 whitespace-pre-wrap break-words dark:bg-red-900/20 dark:text-red-400">
                     {analysisError}
                   </pre>
                 </div>
                 <div className="flex gap-3">
-                  <Button variant="secondary" onClick={handleBackToUpload}>
-                    重新上傳
-                  </Button>
-                  <Button onClick={handleRetry}>
-                    重試分析
-                  </Button>
+                  <Button variant="secondary" onClick={handleBackToUpload}>重新上傳</Button>
+                  <Button onClick={handleRetry}>重試分析</Button>
                 </div>
               </div>
             )}
@@ -281,15 +231,7 @@ export default function BeautifyPage() {
               </h3>
               {previewUrl && (
                 <div className="sticky top-4 space-y-4">
-                  <div className="overflow-hidden rounded-xl border border-zinc-200 bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-800">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={previewUrl}
-                      alt="上傳的圖片"
-                      className="h-auto w-full object-contain"
-                      style={{ maxHeight: '500px' }}
-                    />
-                  </div>
+                  <ImagePreview src={previewUrl} alt="上傳的社群貼文圖片" maxHeight={500} />
                   <div className="rounded-lg bg-zinc-100 p-4 dark:bg-zinc-800/50">
                     <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400">AI 分析摘要</p>
                     <p className="mt-1 text-sm text-zinc-700 dark:text-zinc-300">
@@ -310,8 +252,9 @@ export default function BeautifyPage() {
               <button
                 onClick={handleBackToUpload}
                 className="flex items-center gap-1 text-xs text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
+                aria-label="返回並重新上傳圖片"
               >
-                <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" aria-hidden="true">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
                 </svg>
                 重新上傳圖片
@@ -348,15 +291,7 @@ export default function BeautifyPage() {
             <div className="lg:col-span-2">
               {previewUrl && (
                 <div className="sticky top-4">
-                  <div className="overflow-hidden rounded-xl border border-zinc-200 bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-800">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={previewUrl}
-                      alt="上傳的圖片"
-                      className="h-auto w-full object-contain"
-                      style={{ maxHeight: '500px' }}
-                    />
-                  </div>
+                  <ImagePreview src={previewUrl} alt="上傳的社群貼文圖片" maxHeight={500} />
                 </div>
               )}
             </div>
